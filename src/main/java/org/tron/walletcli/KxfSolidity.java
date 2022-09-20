@@ -11,10 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.*;
-import org.tron.common.utils.AbiUtil;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.ByteUtil;
-import org.tron.common.utils.Utils;
+import org.tron.common.utils.*;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter;
 import org.tron.core.exception.CancelException;
@@ -50,6 +47,9 @@ import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPoint;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
+import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.common.crypto.ECKey;
+
 import org.tron.walletserver.WalletApi;
 import org.tron.walletserver.GrpcClient;
 
@@ -74,6 +74,7 @@ public class KxfSolidity {
 
     }
 
+
     public void transferContract(byte[] owner_address, byte[] to_address,
                                  long amount) throws CipherException, IOException {
         BalanceContract.TransferContract.Builder builder =  BalanceContract.TransferContract.newBuilder();
@@ -83,9 +84,30 @@ public class KxfSolidity {
 
         BalanceContract.TransferContract contract = builder.build();
         //1.create   2.sig   3.broadcast  4.get
-        rpcCli.CreateTransaction2(contract);
-        //
+        TransactionExtention transext = rpcCli.createTransaction2(contract);
+        if (transext == null) {
+            return;
+        }
+
+        Transaction transac = transext.getTransaction();
+        if (transac == null || transac.getRawData().getContractCount() == 0) {
+            System.out.println("Transaction is empty");
+            return;
+        }
+
+        System.out.println(Utils.printTransactionExceptId(transac));
+        System.out.println("before sign transaction hex string is " +
+                ByteArray.toHexString(transac.toByteArray()));
+        //sign
+        byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
+        ECKey key = new ECKey(privatekey, true);
+        transac = TransactionUtils.sign(transac, key);
+
+        //BroadcastTransaction
+        rpcCli.broadcastTransaction(transac);
+
     }
+
 
     public static GrpcClient init() {
         Config config = Configuration.getByPath("config.conf");
