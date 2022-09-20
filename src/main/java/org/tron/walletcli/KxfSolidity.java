@@ -42,6 +42,7 @@ import org.tron.protos.Protocol.MarketPriceList;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AccountContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
@@ -106,6 +107,38 @@ public class KxfSolidity {
         //BroadcastTransaction
         rpcCli.broadcastTransaction(transac);
 
+    }
+
+    public void transferAssetContract(byte[] asset_name, byte[] owner_address, byte[] to_address,
+                                      long amount) throws CipherException, IOException {
+        TransferAssetContract.Builder builder = TransferAssetContract.newBuilder();
+        builder.setToAddress(ByteString.copyFrom(to_address));
+        builder.setAssetName(ByteString.copyFrom(asset_name));
+        builder.setOwnerAddress(ByteString.copyFrom(owner_address));
+        builder.setAmount(amount);
+
+        TransferAssetContract contract = builder.build();
+        TransactionExtention transext = rpcCli.createTransferAssetTransaction2(contract);
+        if (transext == null) {
+            return;
+        }
+
+        Transaction transac = transext.getTransaction();
+        if (transac == null || transac.getRawData().getContractCount() == 0) {
+            System.out.println("Transaction is empty");
+            return;
+        }
+
+        System.out.println(Utils.printTransactionExceptId(transac));
+        System.out.println("before sign transaction hex string is " +
+                ByteArray.toHexString(transac.toByteArray()));
+        //sign
+        byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
+        ECKey key = new ECKey(privatekey, true);
+        transac = TransactionUtils.sign(transac, key);
+
+        //BroadcastTransaction
+        rpcCli.broadcastTransaction(transac);
     }
 
 
