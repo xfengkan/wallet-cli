@@ -48,6 +48,7 @@ import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPoint;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
+import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.common.crypto.ECKey;
 
@@ -141,6 +142,46 @@ public class KxfSolidity {
         rpcCli.broadcastTransaction(transac);
     }
 
+    public void voteWitnessContract(byte[] owner_address, HashMap<String, String> witness,
+                                    boolean support) throws CipherException, IOException {
+        VoteWitnessContract.Builder builder = VoteWitnessContract.newBuilder();
+        builder.setOwnerAddress(ByteString.copyFrom(owner_address));
+        for (String addressBase58 : witness.keySet()) {
+            String value = witness.get(addressBase58);
+            long count = Long.parseLong(value);
+            VoteWitnessContract.Vote.Builder voteBuilder = VoteWitnessContract.Vote.newBuilder();
+            byte[] address = WalletApi.decodeFromBase58Check(addressBase58);
+            if (address == null) {
+                continue;
+            }
+            voteBuilder.setVoteAddress(ByteString.copyFrom(address));
+            voteBuilder.setVoteCount(count);
+            builder.addVotes(voteBuilder.build());
+        }
+
+        VoteWitnessContract contract = builder.build();
+        TransactionExtention transext = rpcCli.voteWitnessAccount2(contract);
+        if (transext == null) {
+            return;
+        }
+
+        Transaction transac = transext.getTransaction();
+        if (transac == null || transac.getRawData().getContractCount() == 0) {
+            System.out.println("Transaction is empty");
+            return;
+        }
+
+        System.out.println(Utils.printTransactionExceptId(transac));
+        System.out.println("before sign transaction hex string is " +
+                ByteArray.toHexString(transac.toByteArray()));
+        //sign
+        byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
+        ECKey key = new ECKey(privatekey, true);
+        transac = TransactionUtils.sign(transac, key);
+
+        //BroadcastTransaction
+        rpcCli.broadcastTransaction(transac);
+    }
 
     public static GrpcClient init() {
         Config config = Configuration.getByPath("config.conf");
