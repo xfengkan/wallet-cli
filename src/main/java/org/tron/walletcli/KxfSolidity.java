@@ -5,8 +5,8 @@ import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import io.netty.util.internal.StringUtil;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.*;
+
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
@@ -49,6 +49,7 @@ import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPoint;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.common.crypto.ECKey;
 
@@ -56,9 +57,6 @@ import org.tron.walletserver.WalletApi;
 import org.tron.walletserver.GrpcClient;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 public class KxfSolidity {
@@ -181,6 +179,66 @@ public class KxfSolidity {
 
         //BroadcastTransaction
         rpcCli.broadcastTransaction(transac);
+    }
+
+    public void assetIssueContract(byte[] owner_address, String name, String abbrName, long totalSupply,
+                                   int trxNum, int icoNum, int precision, long startTime,
+                                   long endTime, int voteScore, String description, String url, long freeNetLimit,
+                                   long publicFreeNetLimit, HashMap<String, String> frozenSupply
+                                   ) throws CipherException, IOException {
+        AssetIssueContract.Builder builder = AssetIssueContract.newBuilder();
+        builder.setOwnerAddress(ByteString.copyFrom(owner_address));
+        builder.setName(ByteString.copyFrom(name.getBytes()));
+        builder.setAbbr(ByteString.copyFrom(abbrName.getBytes()));
+        builder.setTotalSupply(totalSupply);
+        builder.setTrxNum(trxNum);
+        builder.setNum(icoNum);
+        builder.setPrecision(precision);
+        builder.setStartTime(startTime);
+        builder.setEndTime(endTime);
+        builder.setVoteScore(voteScore);
+        builder.setDescription(ByteString.copyFrom(description.getBytes()));
+        builder.setUrl(ByteString.copyFrom(url.getBytes()));
+        builder.setFreeAssetNetLimit(freeNetLimit);
+        builder.setPublicFreeAssetNetLimit(publicFreeNetLimit);
+
+        for (String daysStr : frozenSupply.keySet()) {
+            String amountStr = frozenSupply.get(daysStr);
+            long amount = Long.parseLong(amountStr);
+            long days = Long.parseLong(daysStr);
+            AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+                    = AssetIssueContract.FrozenSupply.newBuilder();
+            frozenSupplyBuilder.setFrozenAmount(amount);
+            frozenSupplyBuilder.setFrozenDays(days);
+            builder.addFrozenSupply(frozenSupplyBuilder.build());
+        }
+
+        AssetIssueContract contract = builder.build();
+
+        TransactionExtention transactionExtention = rpcCli.createAssetIssue2(contract);
+
+        processTransaction(transactionExtention);
+
+    }
+
+    private boolean processTransaction(TransactionExtention transactionExtention){
+        Transaction transaction = transactionExtention.getTransaction();
+        if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+            System.out.println("Transaction is empty");
+            return false;
+        }
+
+        System.out.println(Utils.printTransactionExceptId(transaction));
+        System.out.println("before sign transaction hex string is " +
+                ByteArray.toHexString(transaction.toByteArray()));
+        //sign
+        byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
+        ECKey key = new ECKey(privatekey, true);
+        transaction = TransactionUtils.sign(transaction, key);
+
+        //BroadcastTransaction
+        rpcCli.broadcastTransaction(transaction);
+        return true;
     }
 
     public static GrpcClient init() {
