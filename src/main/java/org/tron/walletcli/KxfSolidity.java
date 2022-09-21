@@ -119,26 +119,8 @@ public class KxfSolidity {
 
         TransferAssetContract contract = builder.build();
         TransactionExtention transext = rpcCli.createTransferAssetTransaction2(contract);
-        if (transext == null) {
-            return;
-        }
 
-        Transaction transac = transext.getTransaction();
-        if (transac == null || transac.getRawData().getContractCount() == 0) {
-            System.out.println("Transaction is empty");
-            return;
-        }
-
-        System.out.println(Utils.printTransactionExceptId(transac));
-        System.out.println("before sign transaction hex string is " +
-                ByteArray.toHexString(transac.toByteArray()));
-        //sign
-        byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
-        ECKey key = new ECKey(privatekey, true);
-        transac = TransactionUtils.sign(transac, key);
-
-        //BroadcastTransaction
-        rpcCli.broadcastTransaction(transac);
+        processTransaction(transext);
     }
 
     public void voteWitnessContract(byte[] owner_address, HashMap<String, String> witness,
@@ -372,12 +354,16 @@ public class KxfSolidity {
             String name = "e6b58be8af95e5ad97e7aca6e4b8b2";//ByteArray.toHexString("e6b58be8af95e5ad97e7aca6e4b8b2".getBytes());
             String abbrname = name;//ByteArray.toHexString("e6b58be8af95e5ad97e7aca6e4b8b2".getBytes());
             System.out.println("before assetIssueContract");
+            /*
             client.assetIssueContract(owner_address,  name, abbrname, 1000,
             10, 10, 6, startTime, endTime, 0, "xfengtest", "www.baidu.com", 0,
             0, frozenSupply);
+             */
             // transfer trc 10
-            System.out.println("after assetIssueContract");
-            //client.transferAssetContract(byte[] asset_name, owner_address, account_address, 100);
+            String asset_name = "1004966"; //1004966
+            byte[] asset_address = asset_name.getBytes();
+            System.out.println("before transferAssetContract" + asset_name);
+            //client.transferAssetContract(asset_address, owner_address, account_address, 100);
             System.out.println("after transferAssetContract");
         } catch (Exception e) {
             System.out.println("exception");
