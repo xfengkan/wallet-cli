@@ -277,6 +277,7 @@ public class KxfSolidity {
         }
         */
 
+        /*
         try {
             System.out.println("before transferContract");
             client.transferContract(owner_address, account_address, 10);
@@ -284,7 +285,33 @@ public class KxfSolidity {
         } catch (Exception e) {
             System.out.println("exception");
         }
+        */
 
+        try {
+            System.out.println("before assetIssueContract");
+            // create trc 10
+            //Data startData = new Data(2022, 9, 21);
+            long time = System.currentTimeMillis();
+            Date startData = new Date(time);
+            long startTime = startData.getTime();
+            time = time + 1000*3600*24*30L; //1 month
+            Date end_data = new Date(time);
+            long endTime = end_data.getTime();
+            HashMap<String, String> frozenSupply = new HashMap<String, String>();
+            frozenSupply.put("1", "2");
+            String name = ByteArray.toHexString("01001101010101011".getBytes());
+            String abbrname = ByteArray.toHexString("0100110101010100".getBytes());
+            System.out.println("before assetIssueContract");
+            client.assetIssueContract(owner_address,  name, abbrname, 1000,
+            200, 100, 5, startTime, endTime, 0, "xfengtest", "www.baidu.com", 100,
+            1000, frozenSupply);
+            // transfer trc 10
+            System.out.println("after assetIssueContract");
+            //client.transferAssetContract(byte[] asset_name, owner_address, account_address, 100);
+            System.out.println("after transferAssetContract");
+        } catch (Exception e) {
+            System.out.println("exception");
+        }
 
 
     }
