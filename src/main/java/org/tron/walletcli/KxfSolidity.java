@@ -42,9 +42,12 @@ import org.tron.protos.Protocol.MarketPriceList;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AccountContract;
+import org.tron.protos.contract.AccountContract.AccountUpdateContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
+import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
 import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPoint;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
@@ -179,12 +182,54 @@ public class KxfSolidity {
     processTransaction(transext);
   }
 
-  public void assetIssueContract(byte[] owner_address, String name, String abbrName,
+  //updateaccount name
+  public void accountUpdateContract(byte[] account_name, byte[] owner_address)throws CipherException, IOException {
+    AccountUpdateContract.Builder builder = AccountUpdateContract.newBuilder();
+    builder.setAccountName(ByteString.copyFrom(account_name));
+    builder.setOwnerAddress(ByteString.copyFrom(owner_address));
+    AccountUpdateContract contract = builder.build();
+
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    processTransaction(transactionExtention);
+  }
+
+  //zhiya
+  public void freezeBalanceContract(byte[] account_name, long frozen_balance, long frozen_duration,
+        int resource, byte[] receiver_address)throws CipherException, IOException {
+    FreezeBalanceContract.Builder builder = FreezeBalanceContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(account_name));
+    builder.setFrozenBalance(frozen_balance);
+    builder.setFrozenDuration(frozen_duration);
+    builder.setResourceValue(resource);
+    // why receiver_address can be null
+    if (receiver_address != null) {
+      builder.setReceiverAddress(ByteString.copyFrom(Objects.requireNonNull(receiver_address)));
+    }
+    FreezeBalanceContract contract = builder.build();
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    processTransaction(transactionExtention);
+  }
+
+  //unfreeze
+  public void UnfreezeBalanceContract(byte[] account_name, int resource, byte[] receiver_address)throws CipherException, IOException {
+    UnfreezeBalanceContract.Builder builder = UnfreezeBalanceContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(account_name));
+    builder.setResourceValue(resource);
+
+    if (receiver_address != null) { //why cannot null
+      builder.setReceiverAddress(ByteString.copyFrom(receiver_address));
+    }
+    UnfreezeBalanceContract contract = builder.build();
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    processTransaction(transactionExtention);
+  }
+
+    public void assetIssueContract(byte[] owner_address, String name, String abbrName,
       long totalSupply,
       int trxNum, int icoNum, int precision, long startTime,
       long endTime, int voteScore, String description, String url, long freeNetLimit,
       long publicFreeNetLimit, HashMap<String, String> frozenSupply
-  ) throws CipherException, IOException {
+      ) throws CipherException, IOException {
     AssetIssueContract.Builder builder = AssetIssueContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner_address));
     builder.setName(ByteString.copyFrom(name.getBytes()));
