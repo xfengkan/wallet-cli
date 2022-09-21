@@ -57,6 +57,7 @@ import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.common.crypto.ECKey;
 
+import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 import org.tron.walletserver.WalletApi;
 import org.tron.walletserver.GrpcClient;
 
@@ -165,6 +166,17 @@ public class KxfSolidity {
       TransactionExtention transext = rpcCli.voteWitnessAccount2(contract);
       processTransaction(transext);
 
+  }
+
+  //update super node
+  public void witnessUpdateContract(byte[] owner_address, String url) throws CipherException, IOException {
+    WitnessUpdateContract.Builder builder = WitnessUpdateContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner_address));
+    builder.setUpdateUrl(ByteString.copyFrom(url.getBytes()));
+    WitnessUpdateContract contract = builder.build();
+
+    TransactionExtention transext = rpcCli.updateWitness2(contract);
+    processTransaction(transext);
   }
 
   public void assetIssueContract(byte[] owner_address, String name, String abbrName,
