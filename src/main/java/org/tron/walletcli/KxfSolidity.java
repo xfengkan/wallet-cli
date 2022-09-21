@@ -50,6 +50,7 @@ import org.tron.protos.contract.ShieldContract.OutputPoint;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.common.crypto.ECKey;
@@ -123,6 +124,7 @@ public class KxfSolidity {
         processTransaction(transext);
     }
 
+    //投票超级节点
     public void voteWitnessContract(byte[] owner_address, HashMap<String, String> witness,
                                     boolean support) throws CipherException, IOException {
         VoteWitnessContract.Builder builder = VoteWitnessContract.newBuilder();
@@ -255,6 +257,23 @@ public class KxfSolidity {
 
     }
 
+    // 购买TRC-10代币
+    public void participateAssetIssueContract(byte[] asset_name, byte[] owner_address, byte[] to_address,
+                                              long amount) throws CipherException, IOException {
+        ParticipateAssetIssueContract.Builder builder = ParticipateAssetIssueContract.newBuilder();
+        builder.setToAddress(ByteString.copyFrom(to_address));
+        builder.setAssetName(ByteString.copyFrom(asset_name));
+        builder.setOwnerAddress(ByteString.copyFrom(owner_address));
+        builder.setAmount(amount);
+
+        ParticipateAssetIssueContract contract = builder.build();
+
+        TransactionExtention transactionExtention =
+                rpcCli.createParticipateAssetIssueTransaction2(contract);
+        processTransaction(transactionExtention);
+
+    }
+
     private boolean processTransaction(TransactionExtention transactionExtention){
         if (transactionExtention == null) {
             System.out.println("transactionExtention is empty");
@@ -285,7 +304,8 @@ public class KxfSolidity {
                 ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
 
         //sign
-        byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
+        byte[] privatekey = ByteArray.fromHexString("0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7");
+        //byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
         ECKey key = new ECKey(privatekey, true);
         transaction = TransactionUtils.sign(transaction, key);
 
@@ -365,6 +385,9 @@ public class KxfSolidity {
             System.out.println("before transferAssetContract" + asset_name);
             //client.transferAssetContract(asset_address, owner_address, account_address, 100);
             System.out.println("after transferAssetContract");
+
+            //purchase trc 10
+            client.participateAssetIssueContract(asset_address,account_address, owner_address, 10);
         } catch (Exception e) {
             System.out.println("exception");
         }
