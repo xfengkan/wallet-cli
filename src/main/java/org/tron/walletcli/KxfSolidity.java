@@ -6,7 +6,7 @@ import com.typesafe.config.Config;
 import io.netty.util.internal.StringUtil;
 import java.math.BigInteger;
 import java.util.*;
-
+import org.tron.common.crypto.Sha256Sm3Hash;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
@@ -51,6 +51,7 @@ import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.common.crypto.ECKey;
 
 import org.tron.walletserver.WalletApi;
@@ -190,17 +191,24 @@ public class KxfSolidity {
         builder.setOwnerAddress(ByteString.copyFrom(owner_address));
         builder.setName(ByteString.copyFrom(name.getBytes()));
         builder.setAbbr(ByteString.copyFrom(abbrName.getBytes()));
+
         builder.setTotalSupply(totalSupply);
         builder.setTrxNum(trxNum);
         builder.setNum(icoNum);
+
         builder.setPrecision(precision);
+
         builder.setStartTime(startTime);
         builder.setEndTime(endTime);
         builder.setVoteScore(voteScore);
+
         builder.setDescription(ByteString.copyFrom(description.getBytes()));
         builder.setUrl(ByteString.copyFrom(url.getBytes()));
         builder.setFreeAssetNetLimit(freeNetLimit);
         builder.setPublicFreeAssetNetLimit(publicFreeNetLimit);
+
+        System.out.println("assetIssueContract " + totalSupply + " " +trxNum + " " + icoNum + " " + precision);
+        System.out.println("assetIssueContract " + startTime + " " +endTime + " " + description + " " + freeNetLimit);
 
         for (String daysStr : frozenSupply.keySet()) {
             String amountStr = frozenSupply.get(daysStr);
@@ -213,6 +221,50 @@ public class KxfSolidity {
             builder.addFrozenSupply(frozenSupplyBuilder.build());
         }
 
+        if (totalSupply <= 0) {
+            System.out.println("totalSupply should greater than 0. but really is " + totalSupply);
+            return;
+        }
+
+        if (trxNum <= 0) {
+            System.out.println("trxNum should greater than 0. but really is " + trxNum);
+            return;
+        }
+
+        if (icoNum <= 0) {
+            System.out.println("num should greater than 0. but really is " + icoNum);
+            return;
+        }
+
+        if (precision < 0) {
+            System.out.println("precision should greater or equal to 0. but really is " + precision);
+            return;
+        }
+
+
+        long now = System.currentTimeMillis();
+        if (startTime <= now) {
+            System.out.println("startTime should greater than now. but really is startTime("
+                    + startTime + ") now(" + now + ")");
+            return;
+        }
+        if (endTime <= startTime) {
+            System.out.println("endTime should greater or equal to startTime. but really is endTime("
+                    + endTime + ") startTime(" + startTime + ")");
+            return;
+        }
+
+        if (freeNetLimit < 0) {
+            System.out.println("freeAssetNetLimit should greater or equal to 0. but really is "
+                    + freeNetLimit);
+            return;
+        }
+        if (publicFreeNetLimit < 0) {
+            System.out.println("publicFreeAssetNetLimit should greater or equal to 0. but really is "
+                    + publicFreeNetLimit);
+            return;
+        }
+
         AssetIssueContract contract = builder.build();
 
         TransactionExtention transactionExtention = rpcCli.createAssetIssue2(contract);
@@ -222,15 +274,34 @@ public class KxfSolidity {
     }
 
     private boolean processTransaction(TransactionExtention transactionExtention){
+        if (transactionExtention == null) {
+            System.out.println("transactionExtention is empty");
+            return false;
+        }
+        Return ret = transactionExtention.getResult();
+        if (!ret.getResult()) {
+            System.out.println("Code = " + ret.getCode());
+            System.out.println("Message = " + ret.getMessage().toStringUtf8());
+            return false;
+        }
         Transaction transaction = transactionExtention.getTransaction();
         if (transaction == null || transaction.getRawData().getContractCount() == 0) {
             System.out.println("Transaction is empty");
             return false;
         }
 
-        System.out.println(Utils.printTransactionExceptId(transaction));
+        if (transaction.getRawData().getContract(0).getType()
+                == ContractType.ShieldedTransferContract) {
+            return false;
+        }
+
+        System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
         System.out.println("before sign transaction hex string is " +
                 ByteArray.toHexString(transaction.toByteArray()));
+
+        System.out.println("transaction hash:" +
+                ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
+
         //sign
         byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
         ECKey key = new ECKey(privatekey, true);
@@ -288,23 +359,22 @@ public class KxfSolidity {
         */
 
         try {
-            System.out.println("before assetIssueContract");
             // create trc 10
             //Data startData = new Data(2022, 9, 21);
-            long time = System.currentTimeMillis();
+            long time = System.currentTimeMillis() + 50000;
             Date startData = new Date(time);
             long startTime = startData.getTime();
-            time = time + 1000*3600*24*30L; //1 month
+            time = time + 1000*3600*24*3L; //1 month
             Date end_data = new Date(time);
             long endTime = end_data.getTime();
             HashMap<String, String> frozenSupply = new HashMap<String, String>();
             frozenSupply.put("1", "2");
-            String name = ByteArray.toHexString("01001101010101011".getBytes());
-            String abbrname = ByteArray.toHexString("0100110101010100".getBytes());
+            String name = "e6b58be8af95e5ad97e7aca6e4b8b2";//ByteArray.toHexString("e6b58be8af95e5ad97e7aca6e4b8b2".getBytes());
+            String abbrname = name;//ByteArray.toHexString("e6b58be8af95e5ad97e7aca6e4b8b2".getBytes());
             System.out.println("before assetIssueContract");
             client.assetIssueContract(owner_address,  name, abbrname, 1000,
-            200, 100, 5, startTime, endTime, 0, "xfengtest", "www.baidu.com", 100,
-            1000, frozenSupply);
+            10, 10, 6, startTime, endTime, 0, "xfengtest", "www.baidu.com", 0,
+            0, frozenSupply);
             // transfer trc 10
             System.out.println("after assetIssueContract");
             //client.transferAssetContract(byte[] asset_name, owner_address, account_address, 100);
