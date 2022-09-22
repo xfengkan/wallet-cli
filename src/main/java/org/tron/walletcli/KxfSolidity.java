@@ -3,43 +3,14 @@ package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
-import io.netty.util.internal.StringUtil;
-import java.math.BigInteger;
 import java.util.*;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import lombok.extern.slf4j.Slf4j;
-import org.bouncycastle.util.encoders.Hex;
-import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.*;
 import org.tron.core.config.Configuration;
-import org.tron.core.config.Parameter;
-import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
-import org.tron.core.exception.ZksnarkException;
-import org.tron.core.zen.ShieldedAddressInfo;
-import org.tron.core.zen.ShieldedNoteInfo;
-import org.tron.core.zen.ShieldedTRC20NoteInfo;
-import org.tron.core.zen.ShieldedTRC20Wrapper;
-import org.tron.core.zen.ShieldedWrapper;
-import org.tron.core.zen.ZenUtils;
-import org.tron.core.zen.address.DiversifierT;
-import org.tron.core.zen.address.ExpandedSpendingKey;
-import org.tron.core.zen.address.FullViewingKey;
-import org.tron.core.zen.address.SpendingKey;
-import org.tron.keystore.StringUtils;
-import org.tron.keystore.WalletFile;
-import org.tron.keystore.WalletUtils;
 import org.tron.protos.Protocol;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.ChainParameters;
-import org.tron.protos.Protocol.Exchange;
-import org.tron.protos.Protocol.MarketOrder;
-import org.tron.protos.Protocol.MarketOrderList;
-import org.tron.protos.Protocol.MarketOrderPairList;
-import org.tron.protos.Protocol.MarketPriceList;
-import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AccountContract;
 import org.tron.protos.contract.AccountContract.AccountUpdateContract;
@@ -55,11 +26,7 @@ import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
 import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
 import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
 import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
-import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
-import org.tron.protos.contract.ShieldContract.OutputPoint;
-import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
-import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 
@@ -79,21 +46,21 @@ public class KxfSolidity {
   private static GrpcClient rpcCli = init();
 
   public void createAccount(byte[] owner_address, byte[] account_address,
-      int type) throws CipherException, IOException {
+      int type) {
     AccountContract.AccountCreateContract.Builder builder = AccountContract.AccountCreateContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner_address));
     builder.setAccountAddress(ByteString.copyFrom(account_address));
-    Protocol.AccountType accout_type = Protocol.AccountType.values()[type];
-    builder.setType(accout_type);
+    Protocol.AccountType accountType = Protocol.AccountType.values()[type];
+    builder.setType(accountType);
 
-    AccountContract.AccountCreateContract accout = builder.build();
-    rpcCli.createAccount2(accout);
+    AccountContract.AccountCreateContract account = builder.build();
+    rpcCli.createAccount2(account);
 
   }
 
 
   public void transferContract(byte[] owner_address, byte[] to_address,
-      long amount) throws CipherException, IOException {
+      long amount) {
     BalanceContract.TransferContract.Builder builder = BalanceContract.TransferContract.newBuilder();
     builder.setAmount(amount);
     builder.setOwnerAddress(ByteString.copyFrom(owner_address));
@@ -101,33 +68,33 @@ public class KxfSolidity {
 
     BalanceContract.TransferContract contract = builder.build();
     //1.create   2.sig   3.broadcast  4.get
-    TransactionExtention transext = rpcCli.createTransaction2(contract);
-    if (transext == null) {
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    if (transactionExtention == null) {
       return;
     }
 
-    Transaction transac = transext.getTransaction();
-    if (transac == null || transac.getRawData().getContractCount() == 0) {
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       System.out.println("Transaction is empty");
       return;
     }
 
-    System.out.println(Utils.printTransactionExceptId(transac));
+    System.out.println(Utils.printTransactionExceptId(transaction));
     System.out.println("before sign transaction hex string is " +
-        ByteArray.toHexString(transac.toByteArray()));
+        ByteArray.toHexString(transaction.toByteArray()));
     //sign
-    byte[] privatekey = ByteArray.fromHexString(
+    byte[] privateKey = ByteArray.fromHexString(
         "c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
-    ECKey key = new ECKey(privatekey, true);
-    transac = TransactionUtils.sign(transac, key);
+    ECKey key = new ECKey(privateKey, true);
+    transaction = TransactionUtils.sign(transaction, key);
 
     //BroadcastTransaction
-    rpcCli.broadcastTransaction(transac);
+    rpcCli.broadcastTransaction(transaction);
 
   }
 
   public void transferAssetContract(byte[] asset_name, byte[] owner_address, byte[] to_address,
-      long amount) throws CipherException, IOException {
+      long amount) {
     TransferAssetContract.Builder builder = TransferAssetContract.newBuilder();
     builder.setToAddress(ByteString.copyFrom(to_address));
     builder.setAssetName(ByteString.copyFrom(asset_name));
@@ -135,14 +102,13 @@ public class KxfSolidity {
     builder.setAmount(amount);
 
     TransferAssetContract contract = builder.build();
-    TransactionExtention transext = rpcCli.createTransferAssetTransaction2(contract);
+    TransactionExtention transactionExtention = rpcCli.createTransferAssetTransaction2(contract);
 
-    processTransaction(transext);
+    processTransaction(transactionExtention);
   }
 
   //create super node
-  public void witnessCreateContract(byte[] owner_address, String url)
-      throws CipherException, IOException {
+  public void witnessCreateContract(byte[] owner_address, String url) {
 
     WitnessCreateContract.Builder builder = WitnessCreateContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner_address));
@@ -318,10 +284,10 @@ public class KxfSolidity {
         ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
 
     //sign
-    byte[] privatekey = ByteArray.fromHexString(
+    byte[] privateKey = ByteArray.fromHexString(
         "0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7");
     //byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
-    ECKey key = new ECKey(privatekey, true);
+    ECKey key = new ECKey(privateKey, true);
     transaction = TransactionUtils.sign(transaction, key);
 
     //BroadcastTransaction
@@ -471,8 +437,8 @@ public class KxfSolidity {
 
     //sign
     //byte[] privatekey = ByteArray.fromHexString("0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7");
-    byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
-    ECKey key = new ECKey(privatekey, true);
+    byte[] privateKey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
+    ECKey key = new ECKey(privateKey, true);
     transaction = TransactionUtils.sign(transaction, key);
 
     //BroadcastTransaction
@@ -516,10 +482,10 @@ public class KxfSolidity {
     }*/
 
     //acount
-    /*
+
     try {
       System.out.println("before accountUpdateContract");
-      //client.transferContract(owner_address, account_address, 10);
+      client.transferContract(owner_address, account_address, 10);
       String owner_name = "e6b58be8af95e5ad97e7aca6e4b8b2";
       //update accout name
       client.accountUpdateContract(owner_name.getBytes(), owner_address);
@@ -528,7 +494,6 @@ public class KxfSolidity {
       System.out.println("exception");
     }
 
-     */
 
 
     try {
@@ -554,7 +519,7 @@ public class KxfSolidity {
       String asset_name = "1004966"; //1004966
       byte[] asset_address = asset_name.getBytes();
       System.out.println("before transferAssetContract" + asset_name);
-      //client.transferAssetContract(asset_address, owner_address, account_address, 100);
+      client.transferAssetContract(asset_address, owner_address, account_address, 100);
       System.out.println("after transferAssetContract");
 
       //purchase trc 10
@@ -612,10 +577,22 @@ public class KxfSolidity {
       System.out.println("exception");
     }
 
-    //withdraw
+    //withdraw:getwards
     try {
       System.out.println("before withdrawBalanceContract");
       //client.withdrawBalanceContract(owner_address);
+      System.out.println("after withdrawBalanceContract");
+    } catch (Exception e) {
+      System.out.println("exception");
+    }
+
+    //proposal
+    try {
+      System.out.println("before withdrawBalanceContract");
+      //client.withdrawBalanceContract(owner_address);
+      //HashMap<long, long> proposal = new HashMap<long, long>();
+      //proposal.put(1, 2);
+      //client.proposalCreateContract(owner_address, proposal);
       System.out.println("after withdrawBalanceContract");
     } catch (Exception e) {
       System.out.println("exception");
