@@ -43,11 +43,18 @@ import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AccountContract;
 import org.tron.protos.contract.AccountContract.AccountUpdateContract;
+import org.tron.protos.contract.AccountContract.SetAccountIdContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
 import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
+import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
+import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
+import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
+import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
 import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPoint;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
@@ -201,7 +208,6 @@ public class KxfSolidity {
     builder.setFrozenBalance(frozen_balance);
     builder.setFrozenDuration(frozen_duration);
     builder.setResourceValue(resource);
-    // why receiver_address can be null
     if (receiver_address != null) {
       builder.setReceiverAddress(ByteString.copyFrom(Objects.requireNonNull(receiver_address)));
     }
@@ -211,7 +217,7 @@ public class KxfSolidity {
   }
 
   //unfreeze
-  public void UnfreezeBalanceContract(byte[] account_name, int resource, byte[] receiver_address)throws CipherException, IOException {
+  public void unfreezeBalanceContract(byte[] account_name, int resource, byte[] receiver_address)throws CipherException, IOException {
     UnfreezeBalanceContract.Builder builder = UnfreezeBalanceContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(account_name));
     builder.setResourceValue(resource);
@@ -224,7 +230,105 @@ public class KxfSolidity {
     processTransaction(transactionExtention);
   }
 
-    public void assetIssueContract(byte[] owner_address, String name, String abbrName,
+  //get reward
+  public void withdrawBalanceContract(byte[] account_name)throws CipherException, IOException {
+    WithdrawBalanceContract.Builder builder = WithdrawBalanceContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(account_name));
+    WithdrawBalanceContract contract = builder.build();
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    processTransaction(transactionExtention);
+  }
+
+  //unfreeze token
+  public void unfreezeAssetContract(byte[] account_name)throws CipherException, IOException {
+    UnfreezeAssetContract.Builder builder = UnfreezeAssetContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(account_name));
+    UnfreezeAssetContract contract = builder.build();
+
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    processTransaction(transactionExtention);
+  }
+
+  //update assertinfo
+  public void updateAssetContract(byte[] ownerAddress, byte[] description, String url,
+            long new_limit, long new_public_limit)throws CipherException, IOException {
+    UpdateAssetContract.Builder builder = UpdateAssetContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
+    builder.setDescription(ByteString.copyFrom(description));
+    builder.setUrl(ByteString.copyFrom(url.getBytes()));
+    builder.setNewLimit(new_limit);
+    builder.setNewPublicLimit(new_public_limit);
+
+    UpdateAssetContract contract = builder.build();
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    processTransaction(transactionExtention);
+  }
+
+  //create proposal
+  public void proposalCreateContract(byte[] ownerAddress, HashMap<Long, Long> parametersMap)throws CipherException, IOException {
+    ProposalCreateContract.Builder builder = ProposalCreateContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
+    builder.putAllParameters(parametersMap);
+    ProposalCreateContract contract = builder.build();
+
+    TransactionExtention transactionExtention = rpcCli.proposalCreate(contract);
+    processTransaction(transactionExtention);
+
+  }
+
+  //approve proposal
+  public void proposalApproveContract(byte[] ownerAddress, long proposal_id, boolean is_add_approval)throws CipherException, IOException {
+    ProposalApproveContract.Builder builder = ProposalApproveContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
+    builder.setProposalId(proposal_id);
+    builder.setIsAddApproval(is_add_approval);
+    ProposalApproveContract contract = builder.build();
+    TransactionExtention transactionExtention = rpcCli.proposalApprove(contract);
+    processTransaction(transactionExtention);
+  }
+
+  //del proposal
+  public void proposalDeleteContract(byte[] ownerAddress, long proposal_id)throws CipherException, IOException {
+    ProposalDeleteContract.Builder builder = ProposalDeleteContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
+    builder.setProposalId(proposal_id);
+    ProposalDeleteContract contract = builder.build();
+    TransactionExtention transactionExtention = rpcCli.proposalDelete(contract);
+    processTransaction(transactionExtention);
+  }
+
+  //set accout id
+  public void setAccountIdContract(byte[] ownerAddress, byte[] accountIdBytes)throws CipherException, IOException {
+    SetAccountIdContract.Builder builder = SetAccountIdContract.newBuilder();
+    builder.setAccountId(ByteString.copyFrom(accountIdBytes));
+    builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
+    SetAccountIdContract contract = builder.build();
+    Transaction transaction = rpcCli.createTransaction(contract);
+    //if fail should return
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("Transaction is empty");
+      return ;
+    }
+
+    System.out.println(Utils.printTransactionExceptId(transaction));
+    System.out.println("before sign transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
+
+    System.out.println("transaction hash:" +
+        ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
+
+    //sign
+    byte[] privatekey = ByteArray.fromHexString(
+        "0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7");
+    //byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
+    ECKey key = new ECKey(privatekey, true);
+    transaction = TransactionUtils.sign(transaction, key);
+
+    //BroadcastTransaction
+    rpcCli.broadcastTransaction(transaction);
+  }
+
+  public void assetIssueContract(byte[] owner_address, String name, String abbrName,
       long totalSupply,
       int trxNum, int icoNum, int precision, long startTime,
       long endTime, int voteScore, String description, String url, long freeNetLimit,
@@ -366,9 +470,8 @@ public class KxfSolidity {
         ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
 
     //sign
-    byte[] privatekey = ByteArray.fromHexString(
-        "0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7");
-    //byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
+    //byte[] privatekey = ByteArray.fromHexString("0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7");
+    byte[] privatekey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
     ECKey key = new ECKey(privatekey, true);
     transaction = TransactionUtils.sign(transaction, key);
 
@@ -403,15 +506,16 @@ public class KxfSolidity {
     byte[] account_address = WalletApi.decodeFromBase58Check(accout);
     int type = 1;
 
-        /*
-        try {
-            System.out.println("before createAccount");
-            client.createAccount(owner_address, account_address, type);
-            System.out.println("after createAccount");
-        } catch (Exception e) {
-            System.out.println("exception");
-        }*/
+    /*
+    try {
+      System.out.println("before createAccount");
+      client.createAccount(owner_address, account_address, type);
+      System.out.println("after createAccount");
+    } catch (Exception e) {
+      System.out.println("exception");
+    }*/
 
+    /*
     try {
       System.out.println("before transferContract");
       client.transferContract(owner_address, account_address, 10);
@@ -419,6 +523,7 @@ public class KxfSolidity {
     } catch (Exception e) {
       System.out.println("exception");
     }
+     */
 
     try {
       // create trc 10
@@ -452,6 +557,19 @@ public class KxfSolidity {
       System.out.println("exception");
     }
 
+    //super node
+    try {
+      System.out.println("before freezeBalanceContract");
+      //freeze
+      //client.freezeBalanceContract(owner_address, 1000000, 3,0, account_address);
+      String url = "www.baidu.com";
+      //unfreeze
+      client.unfreezeBalanceContract(owner_address, 0, account_address);
+      //client.WitnessCreateContract(owner_address, url);
+      System.out.println("after WitnessCreateContract");
+    } catch (Exception e) {
+      System.out.println("exception");
+    }
 
   }
 
