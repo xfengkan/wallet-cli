@@ -1,6 +1,8 @@
 
 package org.tron.walletcli;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import java.util.*;
@@ -9,10 +11,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.*;
 import org.tron.core.config.Configuration;
+import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.Key;
+import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AccountContract;
+import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
 import org.tron.protos.contract.AccountContract.AccountUpdateContract;
 import org.tron.protos.contract.AccountContract.SetAccountIdContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
@@ -406,6 +412,96 @@ public class KxfSolidity {
 
   }
 
+  public void accountPermissionUpdate(byte[] owner, String permissionJson) {
+    AccountPermissionUpdateContract.Builder builder = AccountPermissionUpdateContract.newBuilder();
+
+    JSONObject permissions = JSONObject.parseObject(permissionJson);
+    JSONObject owner_permission = permissions.getJSONObject("owner_permission");
+    JSONObject witness_permission = permissions.getJSONObject("witness_permission");
+    JSONArray active_permissions = permissions.getJSONArray("active_permissions");
+
+    if (owner_permission != null) {
+      Permission ownerPermission = json2Permission(owner_permission);
+      builder.setOwner(ownerPermission);
+    }
+    if (witness_permission != null) {
+      Permission witnessPermission = json2Permission(witness_permission);
+      builder.setWitness(witnessPermission);
+    }
+    if (active_permissions != null) {
+      List<Permission> activePermissionList = new ArrayList<>();
+      for (int j = 0; j < active_permissions.size(); j++) {
+        JSONObject permission = active_permissions.getJSONObject(j);
+        activePermissionList.add(json2Permission(permission));
+      }
+      builder.addAllActives(activePermissionList);
+    }
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+     builder.build();
+    AccountPermissionUpdateContract contract = builder.build();
+    TransactionExtention transactionExtention = rpcCli.accountPermissionUpdate(contract);
+    processTransaction(transactionExtention);
+  }
+
+
+  private Permission json2Permission(JSONObject json) {
+    Permission.Builder permissionBuilder = Permission.newBuilder();
+    if (json.containsKey("type")) {
+      int type = json.getInteger("type");
+      permissionBuilder.setTypeValue(type);
+    }
+    if (json.containsKey("permission_name")) {
+      String permission_name = json.getString("permission_name");
+      permissionBuilder.setPermissionName(permission_name);
+    }
+    if (json.containsKey("threshold")) {
+      long threshold = json.getLong("threshold");
+      permissionBuilder.setThreshold(threshold);
+    }
+    if (json.containsKey("parent_id")) {
+      int parent_id = json.getInteger("parent_id");
+      permissionBuilder.setParentId(parent_id);
+    }
+    if (json.containsKey("operations")) {
+      byte[] operations = ByteArray.fromHexString(json.getString("operations"));
+      permissionBuilder.setOperations(ByteString.copyFrom(operations));
+    }
+    if (json.containsKey("keys")) {
+      JSONArray keys = json.getJSONArray("keys");
+      List<Key> keyList = new ArrayList<>();
+      for (int i = 0; i < keys.size(); i++) {
+        Key.Builder keyBuilder = Key.newBuilder();
+        JSONObject key = keys.getJSONObject(i);
+        String address = key.getString("address");
+        long weight = key.getLong("weight");
+        keyBuilder.setAddress(ByteString.copyFrom(decode58Check(address)));
+        keyBuilder.setWeight(weight);
+        keyList.add(keyBuilder.build());
+      }
+      permissionBuilder.addAllKeys(keyList);
+    }
+    return permissionBuilder.build();
+  }
+
+  private static byte[] decode58Check(String input) {
+    byte[] decodeCheck = Base58.decode(input);
+    if (decodeCheck.length <= 4) {
+      return null;
+    }
+    byte[] decodeData = new byte[decodeCheck.length - 4];
+    System.arraycopy(decodeCheck, 0, decodeData, 0, decodeData.length);
+    byte[] hash0 = Sha256Sm3Hash.hash(decodeData);
+    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
+    if (hash1[0] == decodeCheck[decodeData.length]
+        && hash1[1] == decodeCheck[decodeData.length + 1]
+        && hash1[2] == decodeCheck[decodeData.length + 2]
+        && hash1[3] == decodeCheck[decodeData.length + 3]) {
+      return decodeData;
+    }
+    return null;
+  }
+
+
   private boolean processTransaction(TransactionExtention transactionExtention) {
     if (transactionExtention == null) {
       System.out.println("transactionExtention is empty");
@@ -482,7 +578,7 @@ public class KxfSolidity {
     }*/
 
     //acount
-
+    /*
     try {
       System.out.println("before accountUpdateContract");
       client.transferContract(owner_address, account_address, 10);
@@ -493,6 +589,8 @@ public class KxfSolidity {
     } catch (Exception e) {
       System.out.println("exception");
     }
+
+     */
 
 
 
@@ -548,7 +646,7 @@ public class KxfSolidity {
     try {
       System.out.println("before freezeBalanceContract");
       //freeze
-      client.freezeBalanceContract(owner_address, 3000000, 3,0, account_address);
+      // client.freezeBalanceContract(owner_address, 3000000, 3,0, account_address);
       String url = "www.baidu.com";
       //unfreeze
       // client.unfreezeBalanceContract(owner_address, 0, account_address);
@@ -569,7 +667,7 @@ public class KxfSolidity {
       HashMap<String, String> witness = new HashMap<String, String>();
       //witness.put("TYbgswVSQLXDyk3sYsHmxREEBbcZv4XBdA", "2");
       witness.put("TZBZ3LN7GqbCKzdghSWE5jKjZPJdbniMYk", "1");
-      client.voteWitnessContract(owner_address, witness, true);
+      // client.voteWitnessContract(owner_address, witness, true);
       url = "www.tengx.com";
       //client.witnessUpdateContract(owner_address, url);
       System.out.println("after WitnessCreateContract");
@@ -588,12 +686,29 @@ public class KxfSolidity {
 
     //proposal
     try {
-      System.out.println("before withdrawBalanceContract");
-      //client.withdrawBalanceContract(owner_address);
-      //HashMap<long, long> proposal = new HashMap<long, long>();
-      //proposal.put(1, 2);
+      System.out.println("before proposalCreateContract");
+      HashMap<Long, Long> proposal = new HashMap<Long, Long>();
+      proposal.put(1L, 2L);
       //client.proposalCreateContract(owner_address, proposal);
-      System.out.println("after withdrawBalanceContract");
+      System.out.println("after proposalCreateContract");
+
+      //aprove
+      client.proposalApproveContract(owner_address, 36, true);
+      //client.proposalApproveContract(owner_address, 36, false);
+
+      client.proposalDeleteContract(owner_address, 36);
+      System.out.println("after proposalDeleteContract");
+    } catch (Exception e) {
+      System.out.println("exception");
+    }
+
+    //set account id
+    try {
+      System.out.println("before setAccountIdContract");
+
+      String accountId = "kxftest";
+      client.setAccountIdContract(owner_address, accountId.getBytes());
+      System.out.println("after setAccountIdContract");
     } catch (Exception e) {
       System.out.println("exception");
     }
