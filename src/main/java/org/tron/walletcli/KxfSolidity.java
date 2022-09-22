@@ -515,15 +515,21 @@ public class KxfSolidity {
       System.out.println("exception");
     }*/
 
+    //acount
     /*
     try {
-      System.out.println("before transferContract");
-      client.transferContract(owner_address, account_address, 10);
-      System.out.println("after transferContract");
+      System.out.println("before accountUpdateContract");
+      //client.transferContract(owner_address, account_address, 10);
+      String owner_name = "e6b58be8af95e5ad97e7aca6e4b8b2";
+      //update accout name
+      client.accountUpdateContract(owner_name.getBytes(), owner_address);
+      System.out.println("after accountUpdateContract");
     } catch (Exception e) {
       System.out.println("exception");
     }
+
      */
+
 
     try {
       // create trc 10
@@ -573,6 +579,7 @@ public class KxfSolidity {
      */
 
     //super node
+    /*
     try {
       System.out.println("before freezeBalanceContract");
 
@@ -586,6 +593,16 @@ public class KxfSolidity {
       //client.voteWitnessContract(owner_address, witness, true);
       url = "www.tengx.com";
       //client.witnessUpdateContract(owner_address, url);
+      System.out.println("after WitnessCreateContract");
+    } catch (Exception e) {
+      System.out.println("exception");
+    }
+     */
+
+    //withdraw
+    try {
+      System.out.println("before freezeBalanceContract");
+      client.withdrawBalanceContract(owner_address);
       System.out.println("after WitnessCreateContract");
     } catch (Exception e) {
       System.out.println("exception");
