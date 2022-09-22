@@ -141,7 +141,7 @@ public class KxfSolidity {
   }
 
   //create super node
-  public void WitnessCreateContract(byte[] owner_address, String url)
+  public void witnessCreateContract(byte[] owner_address, String url)
       throws CipherException, IOException {
 
     WitnessCreateContract.Builder builder = WitnessCreateContract.newBuilder();
@@ -557,7 +557,8 @@ public class KxfSolidity {
       System.out.println("exception");
     }
 
-    //super node
+    //freeze
+    /*
     try {
       System.out.println("before freezeBalanceContract");
       //freeze
@@ -565,7 +566,26 @@ public class KxfSolidity {
       String url = "www.baidu.com";
       //unfreeze
       client.unfreezeBalanceContract(owner_address, 0, account_address);
-      //client.WitnessCreateContract(owner_address, url);
+      System.out.println("after unfreezeBalanceContract");
+    } catch (Exception e) {
+      System.out.println("exception");
+    }
+     */
+
+    //super node
+    try {
+      System.out.println("before freezeBalanceContract");
+
+      String url = "www.baidu.com";
+      //create super
+      // client.witnessCreateContract(owner_address, url);
+      //vote
+      HashMap<String, String> witness = new HashMap<String, String>();
+      witness.put("TYbgswVSQLXDyk3sYsHmxREEBbcZv4XBdA", "2");
+      witness.put("TZBZ3LN7GqbCKzdghSWE5jKjZPJdbniMYk", "1");
+      //client.voteWitnessContract(owner_address, witness, true);
+      url = "www.tengx.com";
+      //client.witnessUpdateContract(owner_address, url);
       System.out.println("after WitnessCreateContract");
     } catch (Exception e) {
       System.out.println("exception");
