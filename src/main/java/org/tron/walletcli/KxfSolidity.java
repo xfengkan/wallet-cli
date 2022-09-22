@@ -559,27 +559,41 @@ public class KxfSolidity {
 
       //purchase trc 10
       // client.participateAssetIssueContract(asset_address,account_address, owner_address, 10);
+
+      //update assert info
+      String update_des = "updatedis";
+      String update_url = "www.bai12.com";
+      long update_limit = 4;
+      long update_publict_limit = 50;
+      System.out.println("before updateAssetContract" + asset_name);
+      //client.updateAssetContract(owner_address, update_des.getBytes(), update_url, update_limit, update_publict_limit);
+      System.out.println("after updateAssetContract" + asset_name);
+
+      //unfreeze assert
+      System.out.println("before unfreezeAssetContract" + asset_name);
+      //client.unfreezeAssetContract(owner_address);
+      System.out.println("after unfreezeAssetContract" + asset_name);
+
     } catch (Exception e) {
       System.out.println("exception");
     }
 
     //freeze
-    /*
+
     try {
       System.out.println("before freezeBalanceContract");
       //freeze
-      //client.freezeBalanceContract(owner_address, 1000000, 3,0, account_address);
+      client.freezeBalanceContract(owner_address, 3000000, 3,0, account_address);
       String url = "www.baidu.com";
       //unfreeze
-      client.unfreezeBalanceContract(owner_address, 0, account_address);
+      // client.unfreezeBalanceContract(owner_address, 0, account_address);
       System.out.println("after unfreezeBalanceContract");
     } catch (Exception e) {
       System.out.println("exception");
     }
-     */
+
 
     //super node
-    /*
     try {
       System.out.println("before freezeBalanceContract");
 
@@ -588,22 +602,21 @@ public class KxfSolidity {
       // client.witnessCreateContract(owner_address, url);
       //vote
       HashMap<String, String> witness = new HashMap<String, String>();
-      witness.put("TYbgswVSQLXDyk3sYsHmxREEBbcZv4XBdA", "2");
+      //witness.put("TYbgswVSQLXDyk3sYsHmxREEBbcZv4XBdA", "2");
       witness.put("TZBZ3LN7GqbCKzdghSWE5jKjZPJdbniMYk", "1");
-      //client.voteWitnessContract(owner_address, witness, true);
+      client.voteWitnessContract(owner_address, witness, true);
       url = "www.tengx.com";
       //client.witnessUpdateContract(owner_address, url);
       System.out.println("after WitnessCreateContract");
     } catch (Exception e) {
       System.out.println("exception");
     }
-     */
 
     //withdraw
     try {
-      System.out.println("before freezeBalanceContract");
-      client.withdrawBalanceContract(owner_address);
-      System.out.println("after WitnessCreateContract");
+      System.out.println("before withdrawBalanceContract");
+      //client.withdrawBalanceContract(owner_address);
+      System.out.println("after withdrawBalanceContract");
     } catch (Exception e) {
       System.out.println("exception");
     }
