@@ -32,6 +32,8 @@ import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
 import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
 import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
 import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
+import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
+import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
@@ -410,6 +412,44 @@ public class KxfSolidity {
         rpcCli.createParticipateAssetIssueTransaction2(contract);
     processTransaction(transactionExtention);
 
+  }
+
+  public void updateBrokerage(byte[] owner_address, int brokerage) {
+    UpdateBrokerageContract.Builder updateBrokerageContract = UpdateBrokerageContract.newBuilder();
+    updateBrokerageContract.setOwnerAddress(ByteString.copyFrom(owner_address));
+    updateBrokerageContract.setBrokerage(brokerage);
+    TransactionExtention transactionExtention = rpcCli.updateBrokerage(updateBrokerageContract.build());
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create trx failed!");
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out.println(
+            "Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
+      return;
+    }
+
+    processTransaction(transactionExtention);
+  }
+
+  public void updateEnergyLimitContract(byte[] ownerAddress, byte[] contractAddress, long originEnergyLimit) {
+    UpdateEnergyLimitContract.Builder builder = UpdateEnergyLimitContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
+    builder.setContractAddress(ByteString.copyFrom(contractAddress));
+    builder.setOriginEnergyLimit(originEnergyLimit);
+    UpdateEnergyLimitContract updateEnergyLimitContract = builder.build();
+
+    TransactionExtention transactionExtention = rpcCli.updateEnergyLimit(updateEnergyLimitContract);
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create trx failed!");
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out.println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
+      return;
+    }
+
+    processTransaction(transactionExtention);
   }
 
   public void accountPermissionUpdate(byte[] owner, String permissionJson) {
