@@ -121,7 +121,7 @@ public class KxfSolidity {
 
   //vote super node
   public void voteWitnessContract(byte[] owner_address, HashMap<String, String> witness,
-      boolean support) throws CipherException, IOException {
+      boolean support) {
 
       VoteWitnessContract.Builder builder = VoteWitnessContract.newBuilder();
       builder.setOwnerAddress(ByteString.copyFrom(owner_address));
@@ -156,7 +156,7 @@ public class KxfSolidity {
   }
 
   //updateaccount name
-  public void accountUpdateContract(byte[] account_name, byte[] owner_address)throws CipherException, IOException {
+  public void accountUpdateContract(byte[] account_name, byte[] owner_address) {
     AccountUpdateContract.Builder builder = AccountUpdateContract.newBuilder();
     builder.setAccountName(ByteString.copyFrom(account_name));
     builder.setOwnerAddress(ByteString.copyFrom(owner_address));
@@ -168,7 +168,7 @@ public class KxfSolidity {
 
   //zhiya
   public void freezeBalanceContract(byte[] account_name, long frozen_balance, long frozen_duration,
-        int resource, byte[] receiver_address)throws CipherException, IOException {
+        int resource, byte[] receiver_address) {
     FreezeBalanceContract.Builder builder = FreezeBalanceContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(account_name));
     builder.setFrozenBalance(frozen_balance);
@@ -183,7 +183,7 @@ public class KxfSolidity {
   }
 
   //unfreeze
-  public void unfreezeBalanceContract(byte[] account_name, int resource, byte[] receiver_address)throws CipherException, IOException {
+  public void unfreezeBalanceContract(byte[] account_name, int resource, byte[] receiver_address) {
     UnfreezeBalanceContract.Builder builder = UnfreezeBalanceContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(account_name));
     builder.setResourceValue(resource);
@@ -197,7 +197,7 @@ public class KxfSolidity {
   }
 
   //get reward
-  public void withdrawBalanceContract(byte[] account_name)throws CipherException, IOException {
+  public void withdrawBalanceContract(byte[] account_name) {
     WithdrawBalanceContract.Builder builder = WithdrawBalanceContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(account_name));
     WithdrawBalanceContract contract = builder.build();
@@ -206,7 +206,7 @@ public class KxfSolidity {
   }
 
   //unfreeze token
-  public void unfreezeAssetContract(byte[] account_name)throws CipherException, IOException {
+  public void unfreezeAssetContract(byte[] account_name) {
     UnfreezeAssetContract.Builder builder = UnfreezeAssetContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(account_name));
     UnfreezeAssetContract contract = builder.build();
@@ -217,7 +217,7 @@ public class KxfSolidity {
 
   //update assertinfo
   public void updateAssetContract(byte[] ownerAddress, byte[] description, String url,
-            long new_limit, long new_public_limit)throws CipherException, IOException {
+            long new_limit, long new_public_limit) {
     UpdateAssetContract.Builder builder = UpdateAssetContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
     builder.setDescription(ByteString.copyFrom(description));
@@ -231,7 +231,7 @@ public class KxfSolidity {
   }
 
   //create proposal
-  public void proposalCreateContract(byte[] ownerAddress, HashMap<Long, Long> parametersMap)throws CipherException, IOException {
+  public void proposalCreateContract(byte[] ownerAddress, HashMap<Long, Long> parametersMap) {
     ProposalCreateContract.Builder builder = ProposalCreateContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
     builder.putAllParameters(parametersMap);
@@ -243,7 +243,7 @@ public class KxfSolidity {
   }
 
   //approve proposal
-  public void proposalApproveContract(byte[] ownerAddress, long proposal_id, boolean is_add_approval)throws CipherException, IOException {
+  public void proposalApproveContract(byte[] ownerAddress, long proposal_id, boolean is_add_approval) {
     ProposalApproveContract.Builder builder = ProposalApproveContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
     builder.setProposalId(proposal_id);
@@ -254,7 +254,7 @@ public class KxfSolidity {
   }
 
   //del proposal
-  public void proposalDeleteContract(byte[] ownerAddress, long proposal_id)throws CipherException, IOException {
+  public void proposalDeleteContract(byte[] ownerAddress, long proposal_id) {
     ProposalDeleteContract.Builder builder = ProposalDeleteContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
     builder.setProposalId(proposal_id);
@@ -264,7 +264,7 @@ public class KxfSolidity {
   }
 
   //set accout id
-  public void setAccountIdContract(byte[] ownerAddress, byte[] accountIdBytes)throws CipherException, IOException {
+  public void setAccountIdContract(byte[] ownerAddress, byte[] accountIdBytes) {
     SetAccountIdContract.Builder builder = SetAccountIdContract.newBuilder();
     builder.setAccountId(ByteString.copyFrom(accountIdBytes));
     builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
@@ -299,7 +299,7 @@ public class KxfSolidity {
       int trxNum, int icoNum, int precision, long startTime,
       long endTime, int voteScore, String description, String url, long freeNetLimit,
       long publicFreeNetLimit, HashMap<String, String> frozenSupply
-      ) throws CipherException, IOException {
+      ) {
     AssetIssueContract.Builder builder = AssetIssueContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner_address));
     builder.setName(ByteString.copyFrom(name.getBytes()));
@@ -390,7 +390,7 @@ public class KxfSolidity {
   // 购买TRC-10代币
   public void participateAssetIssueContract(byte[] asset_name, byte[] owner_address,
       byte[] to_address,
-      long amount) throws CipherException, IOException {
+      long amount) {
     ParticipateAssetIssueContract.Builder builder = ParticipateAssetIssueContract.newBuilder();
     builder.setToAddress(ByteString.copyFrom(to_address));
     builder.setAssetName(ByteString.copyFrom(asset_name));
