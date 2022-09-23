@@ -780,7 +780,7 @@ public class KxfSolidity {
       owner_permission.put("threshold", 2);
       JSONArray own_keys = new JSONArray();
       JSONObject own_key1 = new JSONObject();
-      own_key1.put("address", "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt");
+      own_key1.put("address", "TGQg6FD1gTNE6vAa837Ngc1sxC4xqb461E");
       own_keys.add(own_key1);
       owner_permission.put("keys",own_keys);
       permissions.put("owner_permission", owner_permission);
@@ -806,7 +806,8 @@ public class KxfSolidity {
       active.put("operations", "7fff1fc0037e0000000000000000000000000000000000000000000000000000");
       JSONArray active_keys = new JSONArray();
       JSONObject active_key1 = new JSONObject();
-      active_key1.put("address", "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt");
+      active_key1.put("address", "0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7");
+      active_key1.put("address", "b86fb0b05060629894b3869c089664decef8e868bfba167b830ebe5586ee4c86");
       active_keys.add(active_key1);
       active.put("keys",active_keys);
       active_permissions.add(active);
