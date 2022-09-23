@@ -452,6 +452,7 @@ public class KxfSolidity {
     processTransaction(transactionExtention);
   }
 
+  //multi sign
   public void accountPermissionUpdate(byte[] owner, String permissionJson) {
     AccountPermissionUpdateContract.Builder builder = AccountPermissionUpdateContract.newBuilder();
 
@@ -674,7 +675,7 @@ public class KxfSolidity {
 
       //unfreeze assert
       System.out.println("before unfreezeAssetContract" + asset_name);
-      //client.unfreezeAssetContract(owner_address);
+      client.unfreezeAssetContract(owner_address);
       System.out.println("after unfreezeAssetContract" + asset_name);
 
     } catch (Exception e) {
@@ -706,8 +707,8 @@ public class KxfSolidity {
       //vote
       HashMap<String, String> witness = new HashMap<String, String>();
       //witness.put("TYbgswVSQLXDyk3sYsHmxREEBbcZv4XBdA", "2");
-      witness.put("TZBZ3LN7GqbCKzdghSWE5jKjZPJdbniMYk", "1");
-      // client.voteWitnessContract(owner_address, witness, true);
+      witness.put("TP8LKAf3R3FHDAcrQXuwBEWmaGrrUdRvzb", "1");
+      client.voteWitnessContract(owner_address, witness, true);
       url = "www.tengx.com";
       //client.witnessUpdateContract(owner_address, url);
       System.out.println("after WitnessCreateContract");
@@ -749,6 +750,73 @@ public class KxfSolidity {
       String accountId = "kxftest";
       client.setAccountIdContract(owner_address, accountId.getBytes());
       System.out.println("after setAccountIdContract");
+    } catch (Exception e) {
+      System.out.println("exception");
+    }
+
+    //updateBrokerage
+    try {
+      System.out.println("before updateBrokerage");
+      client.updateBrokerage(owner_address, 12);
+      System.out.println("after updateBrokerage");
+
+      /*
+      System.out.println("before updateEnergyLimitContract");
+      String name = "e6b58be8af95e5ad97e7aca6e4b8b2";
+      client.updateEnergyLimitContract(owner_address, name.getBytes(),55000);
+      System.out.println("after updateEnergyLimitContract");
+       */
+    } catch (Exception e) {
+      System.out.println("exception");
+    }
+
+    try {
+      JSONObject permissions = new JSONObject();
+
+      JSONObject owner_permission = new JSONObject();
+      owner_permission.put("type", 0);
+      owner_permission.put("id", 0);
+      owner_permission.put("permission_name", "owner");
+      owner_permission.put("threshold", 2);
+      JSONArray own_keys = new JSONArray();
+      JSONObject own_key1 = new JSONObject();
+      own_key1.put("address", "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt");
+      own_keys.add(own_key1);
+      owner_permission.put("keys",own_keys);
+      permissions.put("owner_permission", owner_permission);
+
+      JSONObject witness_permission = new JSONObject();
+      witness_permission.put("type", 1);
+      witness_permission.put("id", 1);
+      witness_permission.put("permission_name", "witness");
+      witness_permission.put("threshold", 1);
+      JSONArray wit_keys = new JSONArray();
+      JSONObject wit_key1 = new JSONObject();
+      wit_key1.put("address", "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt");
+      wit_keys.add(wit_key1);
+      witness_permission.put("keys",own_keys);
+      permissions.put("witness_permission", witness_permission);
+
+      JSONArray active_permissions = new JSONArray();
+      JSONObject active = new JSONObject();
+      active.put("type", 2);
+      active.put("id", 2);
+      active.put("permission_name", "active0");
+      active.put("threshold", 2);
+      active.put("operations", "7fff1fc0037e0000000000000000000000000000000000000000000000000000");
+      JSONArray active_keys = new JSONArray();
+      JSONObject active_key1 = new JSONObject();
+      active_key1.put("address", "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt");
+      active_keys.add(active_key1);
+      active.put("keys",active_keys);
+      active_permissions.add(active);
+      permissions.put("active_permissions", active_permissions);
+
+      String permissionJson = permissions.toJSONString();
+      System.out.println("before updateBrokerage" + permissionJson);
+      //client.accountPermissionUpdate(owner_address, permissionJson);
+      System.out.println("after accountPermissionUpdate");
+
     } catch (Exception e) {
       System.out.println("exception");
     }
