@@ -1,11 +1,14 @@
 
 package org.tron.walletcli;
-
+import com.google.protobuf.Any;
+import org.bouncycastle.util.encoders.Hex;
+import org.tron.protos.Protocol.Block;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import java.util.*;
+import java.io.*;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.api.GrpcAPI.*;
@@ -17,6 +20,8 @@ import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Key;
 import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Result;
+import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.contract.AccountContract;
 import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
 import org.tron.protos.contract.AccountContract.AccountUpdateContract;
@@ -32,12 +37,15 @@ import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
 import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
 import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
 import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
+import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
+import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
 import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
-
+import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.common.crypto.ECKey;
@@ -95,6 +103,7 @@ public class KxfSolidity {
         "c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
     ECKey key = new ECKey(privateKey, true);
     transaction = TransactionUtils.sign(transaction, key);
+    System.out.println(Utils.printTransactionExceptId(transaction));
 
     //BroadcastTransaction
     rpcCli.broadcastTransaction(transaction);
@@ -461,26 +470,34 @@ public class KxfSolidity {
     JSONObject witness_permission = permissions.getJSONObject("witness_permission");
     JSONArray active_permissions = permissions.getJSONArray("active_permissions");
 
+    System.out.println("generate rpcCli accountPermissionUpdate");
+
     if (owner_permission != null) {
       Permission ownerPermission = json2Permission(owner_permission);
       builder.setOwner(ownerPermission);
     }
+    System.out.println("after ownerPermission");
     if (witness_permission != null) {
       Permission witnessPermission = json2Permission(witness_permission);
       builder.setWitness(witnessPermission);
     }
+    System.out.println("after witnessPermission");
     if (active_permissions != null) {
       List<Permission> activePermissionList = new ArrayList<>();
       for (int j = 0; j < active_permissions.size(); j++) {
+        System.out.println("active_permissions"+j);
         JSONObject permission = active_permissions.getJSONObject(j);
         activePermissionList.add(json2Permission(permission));
       }
       builder.addAllActives(activePermissionList);
     }
+    System.out.println("after active_permissions");
     builder.setOwnerAddress(ByteString.copyFrom(owner));
-     builder.build();
     AccountPermissionUpdateContract contract = builder.build();
+    System.out.println("before rpcCli accountPermissionUpdate");
+
     TransactionExtention transactionExtention = rpcCli.accountPermissionUpdate(contract);
+    System.out.println("after rpcCli accountPermissionUpdate");
     processTransaction(transactionExtention);
   }
 
@@ -542,6 +559,133 @@ public class KxfSolidity {
     return null;
   }
 
+  //deploy
+  public boolean deployContract(
+      byte[] owner,
+      String contractName,
+      String ABI,
+      String code,
+      long feeLimit,
+      long value,
+      long consumeUserResourcePercent,
+      long originEnergyLimit,
+      long tokenValue,
+      String tokenId,
+      String libraryAddressPair,
+      String compilerVersion) {
+
+    CreateSmartContract contractDeployContract =
+        WalletApi.createContractDeployContract(
+            contractName,
+            owner,
+            ABI,
+            code,
+            value,
+            consumeUserResourcePercent,
+            originEnergyLimit,
+            tokenValue,
+            tokenId,
+            libraryAddressPair,
+            compilerVersion);
+
+    TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create trx failed!");
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out
+            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
+      return false;
+    }
+
+    TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
+    Transaction.Builder transBuilder = Transaction.newBuilder();
+    Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+        .toBuilder();
+    rawBuilder.setFeeLimit(feeLimit);
+    transBuilder.setRawData(rawBuilder);
+    for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
+      ByteString s = transactionExtention.getTransaction().getSignature(i);
+      transBuilder.setSignature(i, s);
+    }
+    for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
+      Result r = transactionExtention.getTransaction().getRet(i);
+      transBuilder.setRet(i, r);
+    }
+    texBuilder.setTransaction(transBuilder);
+    texBuilder.setResult(transactionExtention.getResult());
+    texBuilder.setTxid(transactionExtention.getTxid());
+    transactionExtention = texBuilder.build();
+
+    //    byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
+    //    System.out.println(
+    //        "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
+    return processTransaction(transactionExtention);
+  }
+
+  public boolean triggerContract(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long feeLimit,
+      long tokenValue,
+      String tokenId,
+      boolean isConstant) {
+
+    TriggerSmartContract triggerContract = WalletApi.triggerCallContract(owner, contractAddress, callValue,
+        data, tokenValue, tokenId);
+    TransactionExtention transactionExtention;
+    if (isConstant) {
+      transactionExtention = rpcCli.triggerConstantContract(triggerContract);
+    } else {
+      transactionExtention = rpcCli.triggerContract(triggerContract);
+    }
+
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create call trx failed!");
+      System.out.println("Code = " + transactionExtention.getResult().getCode());
+      System.out
+          .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      return false;
+    }
+
+    Transaction transaction = transactionExtention
+        .getTransaction();
+
+    if (transaction.getRetCount() != 0) {
+      TransactionExtention.Builder builder =
+          transactionExtention.toBuilder().clearTransaction().clearTxid();
+      if (transaction.getRet(0).getRet() == Result.code.FAILED) {
+        builder.setResult(builder.getResult().toBuilder().setResult(false));
+      }
+      System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
+      return true;
+    }
+
+    TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
+    Transaction.Builder transBuilder = Transaction.newBuilder();
+    Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+        .toBuilder();
+    rawBuilder.setFeeLimit(feeLimit);
+    transBuilder.setRawData(rawBuilder);
+    for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
+      ByteString s = transactionExtention.getTransaction().getSignature(i);
+      transBuilder.setSignature(i, s);
+    }
+    for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
+      Result r = transactionExtention.getTransaction().getRet(i);
+      transBuilder.setRet(i, r);
+    }
+    texBuilder.setTransaction(transBuilder);
+    texBuilder.setResult(transactionExtention.getResult());
+    texBuilder.setTxid(transactionExtention.getTxid());
+    transactionExtention = texBuilder.build();
+
+    return processTransaction(transactionExtention);
+  }
+
 
   private boolean processTransaction(TransactionExtention transactionExtention) {
     if (transactionExtention == null) {
@@ -565,7 +709,7 @@ public class KxfSolidity {
       return false;
     }
 
-    System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
+    //System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
     System.out.println("before sign transaction hex string is " +
         ByteArray.toHexString(transaction.toByteArray()));
 
@@ -577,6 +721,7 @@ public class KxfSolidity {
     byte[] privateKey = ByteArray.fromHexString("c209b57d51038ab6598d4622c92dfcf1e115f094aac964891c3ef4e101e43b2c");
     ECKey key = new ECKey(privateKey, true);
     transaction = TransactionUtils.sign(transaction, key);
+    System.out.println(Utils.printTransactionExceptId(transaction));
 
     //BroadcastTransaction
     rpcCli.broadcastTransaction(transaction);
@@ -605,6 +750,7 @@ public class KxfSolidity {
 
     String own = "TGQg6FD1gTNE6vAa837Ngc1sxC4xqb461E";
     byte[] owner_address = WalletApi.decodeFromBase58Check(own);
+    System.out.println(" owner_address:");
     String accout = "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt";
     byte[] account_address = WalletApi.decodeFromBase58Check(accout);
     int type = 1;
@@ -619,7 +765,7 @@ public class KxfSolidity {
     }*/
 
     //acount
-    /*
+
     try {
       System.out.println("before accountUpdateContract");
       client.transferContract(owner_address, account_address, 10);
@@ -630,8 +776,6 @@ public class KxfSolidity {
     } catch (Exception e) {
       System.out.println("exception");
     }
-
-     */
 
 
 
@@ -656,13 +800,14 @@ public class KxfSolidity {
              */
       // transfer trc 10
       String asset_name = "1004966"; //1004966
+      //String asset_name = "e6b58be8af95e5ad97e7aca6e4b8b2";
       byte[] asset_address = asset_name.getBytes();
       System.out.println("before transferAssetContract" + asset_name);
-      client.transferAssetContract(asset_address, owner_address, account_address, 100);
+      client.transferAssetContract(asset_address, owner_address, account_address, 1);
       System.out.println("after transferAssetContract");
 
       //purchase trc 10
-      // client.participateAssetIssueContract(asset_address,account_address, owner_address, 10);
+      client.participateAssetIssueContract(asset_address,account_address, owner_address, 10);
 
       //update assert info
       String update_des = "updatedis";
@@ -716,7 +861,7 @@ public class KxfSolidity {
       System.out.println("exception");
     }
 
-    //withdraw:getwards
+    //withdraw:
     try {
       System.out.println("before withdrawBalanceContract");
       //client.withdrawBalanceContract(owner_address);
@@ -777,10 +922,11 @@ public class KxfSolidity {
       owner_permission.put("type", 0);
       owner_permission.put("id", 0);
       owner_permission.put("permission_name", "owner");
-      owner_permission.put("threshold", 2);
+      owner_permission.put("threshold", 1);
       JSONArray own_keys = new JSONArray();
       JSONObject own_key1 = new JSONObject();
       own_key1.put("address", "TGQg6FD1gTNE6vAa837Ngc1sxC4xqb461E");
+      own_key1.put("weight", 1);
       own_keys.add(own_key1);
       owner_permission.put("keys",own_keys);
       permissions.put("owner_permission", owner_permission);
@@ -793,8 +939,9 @@ public class KxfSolidity {
       JSONArray wit_keys = new JSONArray();
       JSONObject wit_key1 = new JSONObject();
       wit_key1.put("address", "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt");
+      wit_key1.put("weight", 1);
       wit_keys.add(wit_key1);
-      witness_permission.put("keys",own_keys);
+      witness_permission.put("keys",wit_keys);
       permissions.put("witness_permission", witness_permission);
 
       JSONArray active_permissions = new JSONArray();
@@ -806,24 +953,205 @@ public class KxfSolidity {
       active.put("operations", "7fff1fc0037e0000000000000000000000000000000000000000000000000000");
       JSONArray active_keys = new JSONArray();
       JSONObject active_key1 = new JSONObject();
-      active_key1.put("address", "0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7");
-      active_key1.put("address", "b86fb0b05060629894b3869c089664decef8e868bfba167b830ebe5586ee4c86");
+      active_key1.put("address", "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt");
+      active_key1.put("weight", 1);
+      JSONObject active_key2 = new JSONObject();
+      active_key2.put("address", "TJvJPtSHsUbzYomuXbtHCVY1Ad2VgDarKz");
+      active_key2.put("weight", 1);
       active_keys.add(active_key1);
+      active_keys.add(active_key2);
       active.put("keys",active_keys);
       active_permissions.add(active);
       permissions.put("active_permissions", active_permissions);
 
       String permissionJson = permissions.toJSONString();
-      System.out.println("before updateBrokerage" + permissionJson);
-      //client.accountPermissionUpdate(owner_address, permissionJson);
+      System.out.println("permissionJson " + permissionJson);
+      System.out.println("before accountPermissionUpdate");
+      // client.accountPermissionUpdate(owner_address, permissionJson);
       System.out.println("after accountPermissionUpdate");
+
+      //validate
+      String to = "TCydA89Kxdiuw7RUiRNLemDPVqmQF7W5nt";
+      byte[] to_address = WalletApi.decodeFromBase58Check(to);
+      String private0 = "0ccb5fdaeba3a747983bd936b945268d044b46db2cdaf42827596aa008fd66e7";
+      String private1 = "b86fb0b05060629894b3869c089664decef8e868bfba167b830ebe5586ee4c86";
+      {
+        //String private2 = "8E812436A0E3323166E1F0E8BA79E19E217B2C4A53C970D4CCA0CFB1078979DF";
+        long amount = 10000000L;
+        Transaction transaction = createTransaction(owner_address, to_address, amount);
+        System.out.println("after createTransaction");
+        TransactionExtention transactionExtention = addSignByApi(transaction,
+            ByteArray.fromHexString(private0));
+        //TransactionExtention transactionExtention = WalletApi
+        //    .addSignByApi(transaction, ByteArray.fromHexString(private0));
+        // System.out.println(Utils.printTransaction(transactionExtention));
+        //TransactionSignWeight transactionSignWeight = WalletApi
+        //   .getTransactionSignWeight(transactionExtention.getTransaction());
+        System.out.println("after addSignByApi1");
+        TransactionSignWeight transactionSignWeight = rpcCli.getTransactionSignWeight(transactionExtention.getTransaction());
+        System.out.println("after transactionSignWeight1");
+        //  System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
+
+        //transactionExtention = WalletApi
+        //    .addSignByApi(transactionExtention.getTransaction(), ByteArray.fromHexString(private1));
+        //System.out.println(Utils.printTransaction(transactionExtention));
+        //transactionSignWeight = WalletApi
+        //    .getTransactionSignWeight(transactionExtention.getTransaction());
+        transactionExtention = addSignByApi(transactionExtention.getTransaction(),
+            ByteArray.fromHexString(private1));
+//    System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
+        System.out.println("after transactionSignWeight12");
+
+        transactionSignWeight = rpcCli.getTransactionSignWeight(transactionExtention.getTransaction());
+        System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
+        rpcCli.broadcastTransaction(transactionExtention.getTransaction());
+        //transactionExtention = WalletApi
+        //    .addSignByApi(transactionExtention.getTransaction(), ByteArray.fromHexString(private2));
+      }
+
+      {
+        //String private2 = "8E812436A0E3323166E1F0E8BA79E19E217B2C4A53C970D4CCA0CFB1078979DF";
+        long amount = 10000000L;
+        Transaction transaction = createTransaction(owner_address, to_address, amount);
+        System.out.println("after createTransaction");
+        TransactionExtention transactionExtention = addSignByApi(transaction,
+            ByteArray.fromHexString(private0));
+        System.out.println("after addSignByApi13");
+        TransactionSignWeight transactionSignWeight = rpcCli.getTransactionSignWeight(
+            transactionExtention.getTransaction());
+        System.out.println("after transactionSignWeight123");
+        transactionSignWeight = rpcCli.getTransactionSignWeight(transactionExtention.getTransaction());
+        rpcCli.broadcastTransaction(transactionExtention.getTransaction());
+      }
+
+        {
+        //1.create trans 2.mutilsign 3.getSignWeight 4. getApprovedList 5.broadcast
+        long amount = 10000000L;
+        Transaction transaction = createTransaction(owner_address, to_address, amount);
+        System.out.println("after createTransaction22");
+        TransactionExtention transactionExtention = addSignByApi(transaction,
+            ByteArray.fromHexString(private0));
+        System.out.println("after addSignByApi");
+        TransactionSignWeight transactionSignWeight = rpcCli.getTransactionSignWeight(transaction);
+        System.out.println("after transactionSignWeight22");
+        transactionSignWeight = rpcCli.getTransactionSignWeight(transactionExtention.getTransaction());
+        rpcCli.broadcastTransaction(transactionExtention.getTransaction());
+      }
+
 
     } catch (Exception e) {
       System.out.println("exception");
     }
 
+    //deploy smartcontract
+    try {
+      long feeLimit = 1000000;
+      long value = 15;
+      long consumeUserResourcePercent = 100;
+      long originEnergyLimit = 100000;
+      long tokenValue = 0;
+      String tokenId = "";
+      String libraryAddressPair = "";
+      String compilerVersion = "0.5.10";
+
+      File file = new File("helloword_abi.txt");
+      BufferedReader br = new BufferedReader(new FileReader(file));
+      String abi = "";
+      while ((abi = br.readLine()) != null) {
+        System.out.println(abi);
+      }
+
+      client.deployContract(owner_address, "hellword_kxf", abi,
+     "608060405234801561001057600080fd5b50d3801561001d57600080fd5b50d2801561002a57600080fd5b506104428061003a6000396000f3fe608060405234801561001057600080fd5b50d3801561001d57600080fd5b50d2801561002a57600080fd5b50600436106100505760003560e01c80636630f88f14610055578063ce6d41de14610189575b600080fd5b61010e6004803603602081101561006b57600080fd5b810190808035906020019064010000000081111561008857600080fd5b82018360208201111561009a57600080fd5b803590602001918460018302840111640100000000831117156100bc57600080fd5b91908080601f016020809104026020016040519081016040528093929190818152602001838380828437600081840152601f19601f82011690508083019250505050505050919291929050505061020c565b6040518080602001828103825283818151815260200191508051906020019080838360005b8381101561014e578082015181840152602081019050610133565b50505050905090810190601f16801561017b5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6101916102c7565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156101d15780820151818401526020810190506101b6565b50505050905090810190601f1680156101fe5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b60608160009080519060200190610224929190610369565b5060008054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156102bb5780601f10610290576101008083540402835291602001916102bb565b820191906000526020600020905b81548152906001019060200180831161029e57829003601f168201915b50505050509050919050565b606060008054600181600116156101000203166002900480601f01602080910402602001604051908101604052809291908181526020018280546001816001161561010002031660029004801561035f5780601f106103345761010080835404028352916020019161035f565b820191906000526020600020905b81548152906001019060200180831161034257829003601f168201915b5050505050905090565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106103aa57805160ff19168380011785556103d8565b828001600101855582156103d8579182015b828111156103d75782518255916020019190600101906103bc565b5b5090506103e591906103e9565b5090565b61040b91905b808211156104075760008160009055506001016103ef565b5090565b9056fea26474726f6e582039e25aa00277b8b5561bb3ec7323496592c59e7a5df951971abc03a2d1c4da4764736f6c634300050a0031",
+       feeLimit,
+       value,
+       consumeUserResourcePercent,
+       originEnergyLimit,
+       tokenValue,
+       tokenId,
+       libraryAddressPair,
+       compilerVersion);
+
+      String contractAddress = "";
+      long callValue = 0;
+      String methodStr = "postMessage(string)"; // function postMessage(string memory value) public returns (string memory) {
+      boolean isHex = false;
+      String argsStr = "kxftest";
+      byte[] input = new byte[0];
+      if (!methodStr.equalsIgnoreCase("#")) {
+        input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+      }
+
+      long feeLimit1 = 5000;
+      long tokenValue1= 0;
+      String tokenId1 = "";
+      client.triggerContract(owner_address, contractAddress.getBytes(),
+      callValue,
+          input,
+          feeLimit1,
+       tokenValue1,
+          tokenId1,
+      true);
+
+    } catch (Exception e) {
+      System.out.println("exception");
+    }
+
+
   }
 
+  public static TransactionExtention addSignByApi(Transaction transaction, byte[] privateKey)
+      throws CancelException {
+    transaction = TransactionUtils.setExpirationTime(transaction);
+    String tipsString = "Please input permission id.";
+    transaction = TransactionUtils.setPermissionId(transaction, tipsString);
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.addSign(builder.build());
+  }
+
+  public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
+    Transaction.Builder transactionBuilder = Transaction.newBuilder();
+    //Block newestBlock = WalletApi.getBlock(-1);
+    Block newestBlock = rpcCli.getBlock(-1);
+
+    Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
+    TransferContract.Builder transferContractBuilder = TransferContract.newBuilder();
+    transferContractBuilder.setAmount(amount);
+    ByteString bsTo = ByteString.copyFrom(to);
+    ByteString bsOwner = ByteString.copyFrom(from);
+    transferContractBuilder.setToAddress(bsTo);
+    transferContractBuilder.setOwnerAddress(bsOwner);
+    try {
+      Any any = Any.pack(transferContractBuilder.build());
+      contractBuilder.setParameter(any);
+    } catch (Exception e) {
+      return null;
+    }
+    contractBuilder.setType(Transaction.Contract.ContractType.TransferContract);
+    transactionBuilder.getRawDataBuilder().addContract(contractBuilder)
+        .setTimestamp(System.currentTimeMillis())
+        .setExpiration(newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
+    Transaction transaction = transactionBuilder.build();
+    Transaction refTransaction = setReference(transaction, newestBlock);
+    return refTransaction;
+  }
+
+  public static Transaction setReference(Transaction transaction, Block newestBlock) {
+    long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
+    byte[] blockHash = getBlockHash(newestBlock).getBytes();
+    byte[] refBlockNum = ByteArray.fromLong(blockHeight);
+    Transaction.raw rawData = transaction.getRawData().toBuilder()
+        .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
+        .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
+        .build();
+    return transaction.toBuilder().setRawData(rawData).build();
+  }
+
+  public static Sha256Sm3Hash getBlockHash(Block block) {
+    return Sha256Sm3Hash.of(block.getBlockHeader().getRawData().toByteArray());
+  }
 
 }
 
